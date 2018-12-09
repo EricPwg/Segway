@@ -1,4 +1,20 @@
 #include <SoftwareSerial.h>
+#include "I2Cdev.h"
+#include "MPU6050.h"
+#include <math.h>
+#define PI 3.14159265
+
+#if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+    #include "Wire.h"
+#endif
+#define OUTPUT_READABLE_ACCELGYRO
+bool blinkState = false;
+int count;
+bool getdata;
+double sum;
+double isum[10];
+# define Kp -250
+# define Ki -200
 
 # define RW_Cpin 12
 # define LW_Cpin 10
@@ -16,7 +32,35 @@ int counterR;
 bool RW_state;
 bool LW_state;
 
-SoftwareSerial mySerial(7,8);
+//SoftwareSerial mySerial(7,8);
+
+MPU6050 accelgyro;
+//MPU6050 accelgyro(0x69); // <-- use for AD0 high
+
+int16_t ax, ay, az;
+int16_t gx, gy, gz;
+
+
+void set_data(double v){
+    int n = (abs(v) <5 ) ? 0 : 20000/v;
+    if (n == 0){
+      enL = 0;
+      enR = 0;
+    }
+    //Serial.println(n);
+    else if(n > 0){
+      digitalWrite(LW_Dpin, LFW_logic);  enL = 1;
+      digitalWrite(RW_Dpin, RFW_logic);  enR = 1;
+      counterL_reload = n;
+      counterR_reload = n;
+    }
+    else if(n < 0){
+      digitalWrite(LW_Dpin, !LFW_logic);  enL = 1;
+      digitalWrite(RW_Dpin, !RFW_logic);  enR = 1;
+      counterL_reload = -n;
+      counterR_reload = -n;
+    }
+}
 
 void setup() {
   // put your setup code here, to run once:
@@ -25,8 +69,8 @@ void setup() {
   pinMode(11, OUTPUT);
   pinMode(10, OUTPUT);
   pinMode(9, OUTPUT);
-  mySerial.begin(9600);
-  //Serial.begin(9600);
+  //mySerial.begin(9600);
+  Serial.begin(115200);
   //delaynum = 10;
   TCCR1A = 0;
   TCCR1B = 0;
@@ -44,6 +88,21 @@ void setup() {
   counterL = 0;
   RW_state = false;
   LW_state = false;
+
+  #if I2CDEV_IMPLEMENTATION == I2CDEV_ARDUINO_WIRE
+      Wire.begin();
+  #elif I2CDEV_IMPLEMENTATION == I2CDEV_BUILTIN_FASTWIRE
+      Fastwire::setup(400, true);
+  #endif
+  accelgyro.initialize();
+  Serial.println(accelgyro.testConnection() ? "MPU6050 connection successful" : "MPU6050 connection failed");
+  while(!accelgyro.testConnection());
+  accelgyro.setXAccelOffset(420);
+  accelgyro.setYAccelOffset(-3099);
+  accelgyro.setZAccelOffset(1080);
+  accelgyro.setXGyroOffset(36);
+  accelgyro.setYGyroOffset(-31);
+  accelgyro.setZGyroOffset(16);
 }
 
 ISR(TIMER1_COMPA_vect){
@@ -64,6 +123,7 @@ ISR(TIMER1_COMPA_vect){
     }
   }
   else digitalWrite(RW_Cpin, LOW);
+  getdata = true;
 }
 
 void loop() {
@@ -74,6 +134,30 @@ void loop() {
   //counterR_reload = 50;
   //digitalWrite(LW_Dpin, LFW_logic);
   //digitalWrite(RW_Dpin, RFW_logic);
+  if (getdata){
+    accelgyro.getMotion6(&ax, &ay, &az, &gx, &gy, &gz);
+    double angle = atan((double)ay/az)*180/PI;
+    
+    sum += angle;
+    count++;
+    if(count == 50){
+      sum /= 50;
+      sum = (abs(sum) < 5) ? 0 : sum;
+      double tsum = 0;
+      for (int i=0; i<10;i++)tsum += isum[i]/10;
+      double p = sum*Kp + tsum*Ki;
+      for (int i=1; i<10; i++) isum[i] = isum[i-1];
+      isum[0] = sum;
+      //Serial.println(p);
+      set_data(p);
+      sum = 0;
+      count = 0;
+    }
+    blinkState = !blinkState;
+    digitalWrite(13, blinkState);
+    getdata = false;
+  }
+  /*
   if(mySerial.available()){
     //Serial.print("123 ");
     char c = mySerial.read();
@@ -98,5 +182,5 @@ void loop() {
         *p = t;
       }
     }
-  }
+  }*/
 }
