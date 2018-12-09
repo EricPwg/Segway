@@ -27,7 +27,7 @@ void setup() {
 ISR(TIMER1_COMPA_vect){
   if (count > 0){
     blinkstate = !blinkstate;
-    digitalWrite(13, blinkstate);
+    digitalWrite(12, blinkstate);
     if (!blinkstate) count--;
   }
 }
@@ -40,7 +40,7 @@ void loop() {
     speed1 = Serial.parseInt();
     count = Serial.parseInt();
   }
-  digitalWrite(12, d);
+  digitalWrite(11, d);
   OCR1A = speed1;
   return ;
   if (a == '3'){
