@@ -85,6 +85,7 @@ ISR(TIMER0_COMPA_vect)          // timer compare interrupt service routine
 
 void loop() {
   // put your main code here, to run repeatedly:
+  /*
   if (Serial.available() > 0){
     get_char = Serial.read();
     if (get_char == ' '){
@@ -99,7 +100,7 @@ void loop() {
    else{
         get_t = get_t*10+((int)get_char-48);
    }
-  }
+  }*/
 
   
 
@@ -112,7 +113,7 @@ void loop() {
 
   for (int i=0;i<SERVO_NUM; i++){
     int t = map(current[i], 0, 180, SERVOMIN, SERVOMAX);
-    pwm.setPWM(i+2, 0, t);
+    pwm.setPWM(i+11, 0, t);
   }
   //myServo[SERVO_NUM].write(current[SERVO_NUM]);
 }
