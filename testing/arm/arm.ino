@@ -8,11 +8,11 @@
 
 #define SERVOMIN  150 // this is the 'minimum' pulse length count (out of 4096)
 #define SERVOMAX  600 // this is the 'maximum' pulse length count (out of 4096)
-#define SERVO_NUM 5
+#define SERVO_NUM 10
 
 int counter;
-int angle[SERVO_NUM] = {90, 60, 75, 90, 90};
-int current[SERVO_NUM] = {90, 90, 90, 90, 90};
+int angle[SERVO_NUM] = {90, 90, 90, 90, 90, 90, 60, 75, 90, 90};
+int current[SERVO_NUM] = {90, 90, 90, 90, 90, 90, 90, 90, 90, 90};
 int state;
 char get_char;
 int get_t;
@@ -168,18 +168,66 @@ void loop() {
   if(lx > 200) angle[2]+=2;
   else if(lx < 90) angle[2]-=2;
   angle[2] = (angle[2] > 170) ? 170 : (angle[2] < 5) ? 5 : angle[2];
+  ps2x.Button(PSB_PAD_UP)
   */
-  int dx = 0;
-  int dy = 0;
-  if(ps2x.Button(PSB_PAD_UP)) dy = 1;
-  else if(ps2x.Button(PSB_PAD_DOWN)) dy = -1;
-  if(ps2x.Button(PSB_PAD_RIGHT)) dx = 1;
-  else if(ps2x.Button(PSB_PAD_LEFT)) dx = -1;
-  cal_armL(&armLx, &armLy, dx, dy, &angle[1], &angle[2]);
+  bool right_arm_flag = (ps2x.Button(PSB_R1)) ? true : false;
+  bool left_arm_flag = (ps2x.Button(PSB_R2)) ? true : false;
+  if(right_arm_flag){
+    byte ly = ps2x.Analog(PSS_LY);
+    byte lx = ps2x.Analog(PSS_LX);
+    if(ly > 150) angle[1] -= 2;
+    else if(ly < 100) angle[1] += 2;
+    if(lx >150) angle[2] -= 2;
+    else if(lx < 100) angle[2] += 2;
+    angle[1] = (angle[1] > 170) ? 170 : (angle[1] < 5) ? 5 : angle[1];
+    angle[2] = (angle[2] > 170) ? 170 : (angle[2] < 5) ? 5 : angle[2];
+    //cal_armL(&armLx, &armLy, dx, dy, &angle[1], &angle[2]);
+    
+    if(ps2x.Button(PSB_PAD_UP)) angle[0] -= 2;
+    else if(ps2x.Button(PSB_PAD_DOWN)) angle[0] += 2;
+    if(ps2x.Button(PSB_PAD_RIGHT)) angle[3] -= 5;
+    else if(ps2x.Button(PSB_PAD_LEFT)) angle[3] += 5;
+    if(ps2x.Button(PSB_L1)) angle[4] += 10;
+    else if(ps2x.Button(PSB_L2)) angle[4] -= 10;
+    angle[0] = (angle[0] > 170) ? 170 : (angle[0] < 5) ? 5 : angle[0];
+    angle[3] = (angle[3] > 170) ? 170 : (angle[3] < 5) ? 5 : angle[3];
+    angle[4] = (angle[4] > 125) ? 125 : (angle[4] < 65) ? 65 : angle[4];
+  }
+  if(left_arm_flag){
+    byte ly = ps2x.Analog(PSS_LY);
+    byte lx = ps2x.Analog(PSS_LX);
+    if(ly > 150) angle[6] += 2;
+    else if(ly < 100) angle[6] -= 2;
+    if(lx >150) angle[7] += 2;
+    else if(lx < 100) angle[7] -= 2;
+    angle[6] = (angle[6] > 170) ? 170 : (angle[6] < 5) ? 5 : angle[6];
+    angle[7] = (angle[7] > 170) ? 170 : (angle[7] < 5) ? 5 : angle[7];
+    //cal_armL(&armLx, &armLy, dx, dy, &angle[1], &angle[2]);
+    
+    if(ps2x.Button(PSB_PAD_UP)) angle[5] += 2;
+    else if(ps2x.Button(PSB_PAD_DOWN)) angle[5] -= 2;
+    if(ps2x.Button(PSB_PAD_RIGHT)) angle[8] += 5;
+    else if(ps2x.Button(PSB_PAD_LEFT)) angle[8] -= 5;
+    if(ps2x.Button(PSB_L1)) angle[9] += 10;
+    else if(ps2x.Button(PSB_L2)) angle[9] -= 10;
+    angle[5] = (angle[5] > 170) ? 170 : (angle[5] < 5) ? 5 : angle[5];
+    angle[8] = (angle[8] > 170) ? 170 : (angle[8] < 5) ? 5 : angle[8];
+    angle[9] = (angle[9] > 125) ? 125 : (angle[9] < 65) ? 65 : angle[9];
+  }
+  if(!left_arm_flag && !right_arm_flag){
+    byte ly = ps2x.Analog(PSS_LY);
+    byte lx = ps2x.Analog(PSS_LX);
+    if(ly > 150 || ly < 100) angle[6] = 180-angle[1];
+    if(lx > 150 || lx < 100) angle[7] = 180-angle[2];
+    
+    if(ps2x.Button(PSB_PAD_UP) || ps2x.Button(PSB_PAD_DOWN)) angle[5] = 180-angle[0];
+    if(ps2x.Button(PSB_PAD_RIGHT) || ps2x.Button(PSB_PAD_LEFT)) angle[8] = 180-angle[3];
+    if(ps2x.Button(PSB_L1)) angle[9] = angle[4];
+  }
   
   for (int i=0;i<SERVO_NUM; i++){
     int t = map(current[i], 0, 180, SERVOMIN, SERVOMAX);
-    pwm.setPWM(i+11, 0, t);
+    pwm.setPWM(i+6, 0, t);
   }
-  delay(10);
+  delay(100);
 }
