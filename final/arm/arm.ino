@@ -15,15 +15,18 @@
 #define moveT 6
 
 int counter;
+int init_angle[SERVO_NUM] = {90, 90, 90, 90, 90, 90, 90, 90, 90, 90};
 int angle[SERVO_NUM] = {90, 90, 90, 90, 90, 90, 90, 90, 90, 90};
 int current[SERVO_NUM] = {90, 90, 90, 90, 90, 90, 90, 90, 90, 90};
 int offset[SERVO_NUM] = {0, 0, 0, 0, 0, 5, 0, 0, 0, 0};
-int set_angle[5][SERVO_NUM] = {
+int set_angle[7][SERVO_NUM] = {
   {90, 30, 90, 0, -1, 90, 150, 90, 0, -1},
   {90, 90, -1, -1, 125, 90, 90, -1, -1, 65},
   {-1, -1, -1, -1, 65, -1, -1, -1, -1, 125},
   {90, 90, 90, -1, -1, 90, 90, 90, -1, -1},
-  {90, 90, 90, 90, 90, 90, 90, 90, 90, 90}
+  {90, 30, 90, 0, -1, 90, 150, 90, 0, -1},
+  {10, 110, 70, 90, -1, 10, 70, 110, 90, -1}, 
+  {90, 90, 90, 90, 90, 90, 90, 90, 90, 90},
   };
 int state;
 char get_char;
@@ -61,17 +64,6 @@ void setup() {
     Serial.println(error);
   }
   
-  /*
-  pinMode(13, OUTPUT);
-  if (error == 0){
-    //digitalWrite(13, 1);
-    //Serial.println("OK!!");
-  }
-  else{
-    //digitalWrite(13, 0);
-    //Serial.println("ERROR!!");
-  }
-  */
   pinMode(moveEN, OUTPUT);
   pinMode(moveT, OUTPUT);
   pinMode(moveF, OUTPUT);
@@ -82,47 +74,6 @@ void setup() {
   state = 0;
   delay(2000);
   
-}
-
-void cal_armL(int *x, int *y, int dx, int dy, int *phi1, int *phi2){
-  int tx = *x;
-  int ty = *y;
-  tx = (tx + dx > 10) ? 10 : tx + dx;
-  ty = (ty + dy < 0) ? 0 : ty + dy;
-  double theta0 = atan((double)ty/(-tx))*180/PI;
-  double LL3 = sqrt((double)tx*tx+(double)ty*ty);
-  double theta3 = acos((LL1*LL1+LL2*LL2-LL3*LL3)/(2*LL1*LL2))*180/PI;
-  double theta2 = acos((LL1*LL1+LL3*LL3-LL2*LL2)/(2*LL1*LL3))*180/PI;
-  int tphi1 = (int)(theta2-theta0+60);
-  int tphi2 = (int)(255-theta3);
-  
-  Serial.print(tx);
-  Serial.print(" ");
-  Serial.print(ty);
-  Serial.print(" ");
-  Serial.print(LL3);
-  Serial.print(" ");
-  Serial.print(LL3);
-  Serial.print(" ");
-  Serial.print(theta0);
-  Serial.print(" ");
-  Serial.print(theta2);
-  Serial.print(" ");
-  Serial.print(theta3);
-  Serial.print(" ");
-  Serial.print(tphi1);
-  Serial.print(" ");
-  Serial.print(tphi2);
-  Serial.print("\n");
-  
-  if (tphi1 > 0 && tphi1 < 175 && tphi2 > 0 && tphi2 < 175){
-    *phi1 = tphi1;
-    *phi2 = tphi2;
-    *x = tx;
-    *y = ty;
-    return;
-  } 
-  else return;
 }
 
 ISR(TIMER0_COMPA_vect)          // timer compare interrupt service routine
@@ -144,7 +95,30 @@ ISR(TIMER0_COMPA_vect)          // timer compare interrupt service routine
 
 //void getcontrol(char*);
 void loop() {
+  for (int i=0;i<SERVO_NUM; i++){
+    int t = map(current[i]+offset[i], 0, 180, SERVOMIN, SERVOMAX);
+    pwm.setPWM(i+6, 0, t);
+  }
+  delay(50);
+  
   ps2x.read_gamepad();
+  int ry = 128;
+  int rx = 128;
+  ry = ps2x.Analog(PSS_RY);
+  rx = ps2x.Analog(PSS_RX);
+  int t = ps2x.readType();
+  Serial.print(t);
+  Serial.print(" ");
+  Serial.print(ry);
+  Serial.print(" ");
+  Serial.println(rx);
+  
+  if(ry < 50) {      digitalWrite(moveEN, HIGH); digitalWrite(moveF, HIGH); digitalWrite(moveT, LOW); }
+  else if(ry > 200) {digitalWrite(moveEN, HIGH); digitalWrite(moveF, LOW);  digitalWrite(moveT, LOW); }
+  else if(rx > 200) {digitalWrite(moveEN, HIGH); digitalWrite(moveF, HIGH); digitalWrite(moveT, HIGH);}
+  else if(rx <  50) {digitalWrite(moveEN, HIGH); digitalWrite(moveF, LOW);  digitalWrite(moveT, HIGH);}
+  else {digitalWrite(moveEN, LOW);  digitalWrite(moveF, LOW);  digitalWrite(moveT, LOW);}
+
   
   bool right_arm_flag = (ps2x.Button(PSB_R1)) ? true : false;
   bool left_arm_flag = (ps2x.Button(PSB_R2)) ? true : false;
@@ -170,7 +144,25 @@ void loop() {
       state = 0;
       for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[3][i] >= 0) ? set_angle[3][i] : angle[i];
     }
+    return;
   }
+
+  if(ps2x.Button(PSB_RED)){
+    for (int i=0; i<SERVO_NUM; i++) angle[i] = init_angle[i];
+    return;
+  }
+
+  if(ps2x.Button(PSB_PINK)){
+    if (state == 0) state = 10;
+    else if (state == 10){
+      if(ps2x.Button(PSB_GREEN)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[4][i] >= 0) ? set_angle[4][i] : angle[i];
+      else if(ps2x.Button(PSB_RED)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[5][i] >= 0) ? set_angle[5][i] : angle[i];
+      else if(ps2x.Button(PSB_BLUE)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[6][i] >= 0) ? set_angle[6][i] : angle[i];
+    }
+    return;
+  }
+
+  if(state == 10 && (!ps2x.Button(PSB_PINK))) state = 0;
   
   if(right_arm_flag){
     byte ly = ps2x.Analog(PSS_LY);
@@ -183,8 +175,8 @@ void loop() {
     angle[2] = (angle[2] > 170) ? 170 : (angle[2] < 5) ? 5 : angle[2];
     //cal_armL(&armLx, &armLy, dx, dy, &angle[1], &angle[2]);
     
-    if(ps2x.Button(PSB_PAD_UP)) angle[0] -= 2;
-    else if(ps2x.Button(PSB_PAD_DOWN)) angle[0] += 2;
+    if(ps2x.Button(PSB_PAD_UP)) angle[0] += 2;
+    else if(ps2x.Button(PSB_PAD_DOWN)) angle[0] -= 2;
     if(ps2x.Button(PSB_PAD_RIGHT)) angle[3] -= 5;
     else if(ps2x.Button(PSB_PAD_LEFT)) angle[3] += 5;
     if(ps2x.Button(PSB_L1)) angle[4] += 10;
@@ -204,8 +196,8 @@ void loop() {
     angle[7] = (angle[7] > 170) ? 170 : (angle[7] < 5) ? 5 : angle[7];
     //cal_armL(&armLx, &armLy, dx, dy, &angle[1], &angle[2]);
     
-    if(ps2x.Button(PSB_PAD_UP)) angle[5] += 2;
-    else if(ps2x.Button(PSB_PAD_DOWN)) angle[5] -= 2;
+    if(ps2x.Button(PSB_PAD_UP)) angle[5] -= 2;
+    else if(ps2x.Button(PSB_PAD_DOWN)) angle[5] += 2;
     if(ps2x.Button(PSB_PAD_RIGHT)) angle[8] += 5;
     else if(ps2x.Button(PSB_PAD_LEFT)) angle[8] -= 5;
     if(ps2x.Button(PSB_L1)) angle[9] += 10;
@@ -214,7 +206,7 @@ void loop() {
     angle[8] = (angle[8] > 170) ? 170 : (angle[8] < 5) ? 5 : angle[8];
     angle[9] = (angle[9] > 125) ? 125 : (angle[9] < 65) ? 65 : angle[9];
   }
-  if(!left_arm_flag && !right_arm_flag && state == 0){
+  if(ps2x.ButtonPressed(PSB_BLUE) && state == 0){
     byte ly = ps2x.Analog(PSS_LY);
     byte lx = ps2x.Analog(PSS_LX);
     if(ly > 150 || ly < 100) angle[6] = 180-angle[1];
@@ -226,8 +218,8 @@ void loop() {
   }
 
   if(!left_arm_flag && !right_arm_flag && state == 2){
-    if(ps2x.Button(PSB_PAD_UP)) angle[5] += 2;
-    else if(ps2x.Button(PSB_PAD_DOWN)) angle[5] -= 2;
+    if(ps2x.Button(PSB_PAD_UP)) angle[5] -= 2;
+    else if(ps2x.Button(PSB_PAD_DOWN)) angle[5] += 2;
     angle[5] = (angle[5] > 170) ? 170 : (angle[5] < 5) ? 5 : angle[5];
     byte lx = ps2x.Analog(PSS_LX);
     if(lx >150) angle[2] -= 2;
@@ -237,26 +229,4 @@ void loop() {
     angle[7] = 180-angle[2];
   }
   
-  int ry = 128;
-  int rx = 128;
-  ry = ps2x.Analog(PSS_RY);
-  rx = ps2x.Analog(PSS_RX);
-  int t = ps2x.readType();
-  Serial.print(t);
-  Serial.print(" ");
-  Serial.print(ry);
-  Serial.print(" ");
-  Serial.println(rx);
-  
-  if(ry < 50) {      digitalWrite(moveEN, HIGH); digitalWrite(moveF, HIGH); digitalWrite(moveT, LOW); }
-  else if(ry > 200) {digitalWrite(moveEN, HIGH); digitalWrite(moveF, LOW);  digitalWrite(moveT, LOW); }
-  else if(rx > 200) {digitalWrite(moveEN, HIGH); digitalWrite(moveF, HIGH); digitalWrite(moveT, HIGH);}
-  else if(rx <  50) {digitalWrite(moveEN, HIGH); digitalWrite(moveF, LOW);  digitalWrite(moveT, HIGH);}
-  else {digitalWrite(moveEN, LOW);  digitalWrite(moveF, LOW);  digitalWrite(moveT, LOW);}
-  
-  for (int i=0;i<SERVO_NUM; i++){
-    int t = map(current[i]+offset[i], 0, 180, SERVOMIN, SERVOMAX);
-    pwm.setPWM(i+6, 0, t);
-  }
-  delay(50);
 }
