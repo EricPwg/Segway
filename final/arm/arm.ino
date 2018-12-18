@@ -25,8 +25,8 @@ int set_angle[7][SERVO_NUM] = {
   {-1, -1, -1, -1, 65, -1, -1, -1, -1, 125},
   {90, 90, 90, -1, -1, 90, 90, 90, -1, -1},
   {90, 30, 90, 0, -1, 90, 150, 90, 0, -1},
-  {10, 110, 70, 90, -1, 10, 70, 110, 90, -1}, 
-  {90, 90, 90, 90, 90, 90, 90, 90, 90, 90},
+  {170, 90, 50, 0, -1, 20, 90, 130, 0, -1}, 
+  {70, 70, 20, 90, -1, 110, 110, 160, 90, -1},
   };
 int state;
 char get_char;
@@ -126,6 +126,16 @@ void loop() {
   Serial.print(state);
   Serial.print(" ");
   for (int i=0; i<SERVO_NUM; i++){Serial.print(angle[i]); Serial.print(" ");}
+
+  if(ps2x.Button(PSB_PINK)){
+    if (state == 0) state = 10;
+    else if (state == 10){
+      if(ps2x.Button(PSB_GREEN)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[4][i] >= 0) ? set_angle[4][i] : angle[i];
+      else if(ps2x.Button(PSB_RED)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[5][i] >= 0) ? set_angle[5][i] : angle[i];
+      else if(ps2x.Button(PSB_BLUE)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[6][i] >= 0) ? set_angle[6][i] : angle[i];
+    }
+    return;
+  }
   
   if(ps2x.ButtonPressed(PSB_GREEN)){
     if(state == 0){
@@ -149,16 +159,6 @@ void loop() {
 
   if(ps2x.Button(PSB_RED)){
     for (int i=0; i<SERVO_NUM; i++) angle[i] = init_angle[i];
-    return;
-  }
-
-  if(ps2x.Button(PSB_PINK)){
-    if (state == 0) state = 10;
-    else if (state == 10){
-      if(ps2x.Button(PSB_GREEN)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[4][i] >= 0) ? set_angle[4][i] : angle[i];
-      else if(ps2x.Button(PSB_RED)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[5][i] >= 0) ? set_angle[5][i] : angle[i];
-      else if(ps2x.Button(PSB_BLUE)) for (int i=0; i<SERVO_NUM; i++) angle[i] = (set_angle[6][i] >= 0) ? set_angle[6][i] : angle[i];
-    }
     return;
   }
 
